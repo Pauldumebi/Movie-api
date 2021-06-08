@@ -2,8 +2,9 @@
 
 namespace App\Exceptions;
 
+use Exception;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
-use Throwable;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class Handler extends ExceptionHandler
 {
@@ -27,14 +28,44 @@ class Handler extends ExceptionHandler
     ];
 
     /**
-     * Register the exception handling callbacks for the application.
+     * Report or log an exception.
      *
+     * @param  \Exception  $exception
      * @return void
      */
-    public function register()
+    public function report(Exception $exception)
     {
-        $this->reportable(function (Throwable $e) {
-            //
-        });
+        parent::report($exception);
+    } 
+
+    /**
+     * Render an exception into an HTTP response.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Exception  $exception
+     * @return \Illuminate\Http\Response
+     */
+    public function render($request, Exception $exception)
+    {
+        // To see exception in terminal when running tests
+        // throw $exception;
+        // For Public API Endpoints Error Rendering
+        if ($exception instanceof UnprocessableEntityHttpException) {
+            $message = $exception->getMessage();
+            // dd($message);
+            $messageArray = json_decode($message, true);
+            // set the pointer to point to the first element
+            reset($messageArray);
+            $first = current($messageArray);
+            // Get first validation error message
+            $error = $first[0];
+            return response()->json([
+                'message' => 'Validation has failed',
+                'error' => $error,
+                'status' => false
+            ], 422);
+        }
+        
+        return parent::render($request, $exception);
     }
 }
